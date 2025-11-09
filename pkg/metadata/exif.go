@@ -8,27 +8,6 @@ import (
 	"github.com/rwcarlsen/goexif/exif"
 )
 
-// ExifData holds important EXIF information
-type ExifData struct {
-	Make         string
-	Model        string
-	DateTime     string
-	Orientation  string
-	Width        string
-	Height       string
-	FocalLength  string
-	Aperture     string
-	ISO          string
-	ShutterSpeed string
-	GPS          *GPSData
-}
-
-// GPSData holds GPS coordinates
-type GPSData struct {
-	Latitude  float64
-	Longitude float64
-}
-
 // ReadExif reads EXIF data from an image file
 func ReadExif(path string) (*ExifData, error) {
 	file, err := os.Open(path)
@@ -43,8 +22,15 @@ func ReadExif(path string) (*ExifData, error) {
 	}
 
 	data := &ExifData{}
+	extractBasicInfo(x, data)
+	extractCameraSettings(x, data)
+	extractGPSData(x, data)
 
-	// Extract common fields
+	return data, nil
+}
+
+// extractBasicInfo extracts basic camera and image information
+func extractBasicInfo(x *exif.Exif, data *ExifData) {
 	if make, err := x.Get(exif.Make); err == nil {
 		if val, err := make.StringVal(); err == nil {
 			data.Make = strings.TrimSpace(val)
@@ -75,6 +61,10 @@ func ReadExif(path string) (*ExifData, error) {
 			data.Height = fmt.Sprintf("%d", val)
 		}
 	}
+}
+
+// extractCameraSettings extracts camera settings (ISO, aperture, etc.)
+func extractCameraSettings(x *exif.Exif, data *ExifData) {
 	if focalLength, err := x.Get(exif.FocalLength); err == nil {
 		num, denom, err := focalLength.Rat2(0)
 		if err == nil && denom != 0 {
@@ -102,8 +92,10 @@ func ReadExif(path string) (*ExifData, error) {
 			}
 		}
 	}
+}
 
-	// Extract GPS data
+// extractGPSData extracts GPS coordinates
+func extractGPSData(x *exif.Exif, data *ExifData) {
 	lat, lon, err := x.LatLong()
 	if err == nil {
 		data.GPS = &GPSData{
@@ -111,8 +103,6 @@ func ReadExif(path string) (*ExifData, error) {
 			Longitude: lon,
 		}
 	}
-
-	return data, nil
 }
 
 // FormatExif formats EXIF data as a human-readable string
@@ -143,7 +133,7 @@ func FormatExif(data *ExifData) string {
 	if data.Orientation != "" {
 		sb.WriteString(fmt.Sprintf("Orientation: %s\n", data.Orientation))
 	}
-	if data.GPS != nil {
+	if data.HasGPS() {
 		sb.WriteString(fmt.Sprintf("GPS: %.6f, %.6f\n", data.GPS.Latitude, data.GPS.Longitude))
 	}
 
