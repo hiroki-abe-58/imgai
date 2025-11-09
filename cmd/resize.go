@@ -4,37 +4,42 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/hiroki-abe-58/imgai/pkg/batch"
 	"github.com/hiroki-abe-58/imgai/pkg/image"
 	"github.com/spf13/cobra"
 )
 
 var (
-	resizeWidth  int
-	resizeHeight int
-	resizeOutput string
+	resizeWidth   int
+	resizeHeight  int
+	resizeOutput  string
+	resizeWorkers int
 )
 
 var resizeCmd = &cobra.Command{
-	Use:   "resize [image]",
-	Short: "Resize an image",
-	Long: `Resize an image to specified dimensions.
+	Use:   "resize [image(s)]",
+	Short: "Resize one or multiple images",
+	Long: `Resize one or multiple images to specified dimensions.
 
 If only width or height is specified, the aspect ratio will be maintained.
-If both are specified, the image will be resized to exact dimensions.
+If both are specified, images will be resized to exact dimensions.
+
+Batch processing: When multiple files are provided, they will be processed
+in parallel using goroutines for maximum performance.
 
 Examples:
-  # Resize to 800px width (maintain aspect ratio)
+  # Resize single image to 800px width
   imgai resize input.jpg --width 800
 
-  # Resize to 600px height (maintain aspect ratio)
-  imgai resize input.jpg --height 600
+  # Resize multiple images
+  imgai resize img1.jpg img2.jpg img3.jpg --width 800
 
-  # Resize to exact dimensions
-  imgai resize input.jpg --width 800 --height 600
+  # Resize all JPEGs in directory
+  imgai resize *.jpg --width 800
 
-  # Specify output file
-  imgai resize input.jpg --width 800 --output output.jpg`,
-	Args: cobra.ExactArgs(1),
+  # Resize with 8 parallel workers
+  imgai resize *.jpg --width 800 --workers 8`,
+	Args: cobra.MinimumNArgs(1),
 	RunE: runResize,
 }
 
@@ -43,29 +48,60 @@ func init() {
 
 	resizeCmd.Flags().IntVarP(&resizeWidth, "width", "w", 0, "Target width in pixels")
 	resizeCmd.Flags().IntVar(&resizeHeight, "height", 0, "Target height in pixels")
-	resizeCmd.Flags().StringVarP(&resizeOutput, "output", "o", "", "Output file path (default: input_resized_WxH.ext)")
+	resizeCmd.Flags().StringVarP(&resizeOutput, "output", "o", "", "Output file path (single file only)")
+	resizeCmd.Flags().IntVar(&resizeWorkers, "workers", 4, "Number of parallel workers for batch processing")
 }
 
 func runResize(cmd *cobra.Command, args []string) error {
-	inputPath := args[0]
-
-	// Validate input file exists
-	if _, err := os.Stat(inputPath); os.IsNotExist(err) {
-		return fmt.Errorf("file not found: %s", inputPath)
-	}
-
 	// Validate at least one dimension is specified
 	if resizeWidth == 0 && resizeHeight == 0 {
 		return fmt.Errorf("at least one dimension (width or height) must be specified")
 	}
 
-	// Prepare resize options
-	opts := image.ResizeOptions{
-		Width:  resizeWidth,
-		Height: resizeHeight,
-		Output: resizeOutput,
+	// Single file mode with output path
+	if len(args) == 1 && resizeOutput != "" {
+		inputPath := args[0]
+		if _, err := os.Stat(inputPath); os.IsNotExist(err) {
+			return fmt.Errorf("file not found: %s", inputPath)
+		}
+
+		opts := image.ResizeOptions{
+			Width:  resizeWidth,
+			Height: resizeHeight,
+			Output: resizeOutput,
+		}
+		return image.ResizeImage(inputPath, opts)
 	}
 
-	// Resize the image
-	return image.ResizeImage(inputPath, opts)
+	// Batch processing mode
+	processor := batch.NewProcessor(resizeWorkers)
+	
+	processFunc := func(path string) error {
+		opts := image.ResizeOptions{
+			Width:  resizeWidth,
+			Height: resizeHeight,
+			Output: "", // Auto-generate output path
+		}
+		return image.ResizeImage(path, opts)
+	}
+
+	results := processor.Process(args, processFunc)
+
+	// Display summary
+	successCount := 0
+	for _, result := range results {
+		if result.Success {
+			successCount++
+		} else {
+			fmt.Fprintf(os.Stderr, "✗ Failed: %s - %v\n", result.Path, result.Error)
+		}
+	}
+
+	fmt.Printf("\n✓ Successfully processed %d/%d images\n", successCount, len(results))
+
+	if successCount < len(results) {
+		return fmt.Errorf("some images failed to process")
+	}
+
+	return nil
 }
