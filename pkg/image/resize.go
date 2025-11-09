@@ -2,78 +2,76 @@ package image
 
 import (
 	"fmt"
-	"image"
-	"path/filepath"
 
 	"github.com/disintegration/imaging"
 )
 
-// ResizeOptions holds options for resizing images
+// ResizeOptions holds options for resizing an image
 type ResizeOptions struct {
 	Width  int
 	Height int
 	Output string
 }
 
-// ResizeImage resizes an image file
+// ResizeImage resizes an image based on the provided options
 func ResizeImage(inputPath string, opts ResizeOptions) error {
-	// Open the image
-	src, err := imaging.Open(inputPath)
-	if err != nil {
-		return fmt.Errorf("failed to open image: %w", err)
+	// Validate input file
+	if err := ValidateInputFile(inputPath); err != nil {
+		return err
 	}
 
-	// Calculate dimensions
-	width, height := calculateDimensions(src, opts.Width, opts.Height)
+	// Validate dimensions
+	if err := ValidateDimensions(opts.Width, opts.Height); err != nil {
+		return err
+	}
 
-	// Resize the image using Lanczos resampling filter
-	resized := imaging.Resize(src, width, height, imaging.Lanczos)
+	// Open the image
+	img, err := imaging.Open(inputPath)
+	if err != nil {
+		return fmt.Errorf("%w: %v", ErrOpenFile, err)
+	}
+
+	// Get original dimensions
+	bounds := img.Bounds()
+	origWidth := bounds.Dx()
+	origHeight := bounds.Dy()
+
+	// Calculate target dimensions
+	targetWidth, targetHeight := calculateDimensions(origWidth, origHeight, opts.Width, opts.Height)
+
+	// Resize the image
+	resized := imaging.Resize(img, targetWidth, targetHeight, imaging.Lanczos)
 
 	// Determine output path
 	outputPath := opts.Output
 	if outputPath == "" {
-		outputPath = generateOutputPath(inputPath, width, height)
+		suffix := fmt.Sprintf("_resized_%dx%d", targetWidth, targetHeight)
+		outputPath = GenerateOutputPath(inputPath, suffix, ".jpg")
 	}
 
 	// Save the resized image
 	if err := imaging.Save(resized, outputPath); err != nil {
-		return fmt.Errorf("failed to save image: %w", err)
+		return fmt.Errorf("%w: %v", ErrSaveImage, err)
 	}
 
-	fmt.Printf("✓ Resized: %s → %s (%dx%d)\n", inputPath, outputPath, width, height)
+	fmt.Printf("✓ Resized: %s → %s (%dx%d)\n", inputPath, outputPath, targetWidth, targetHeight)
 	return nil
 }
 
-// calculateDimensions calculates the target dimensions while maintaining aspect ratio
-func calculateDimensions(img image.Image, targetWidth, targetHeight int) (int, int) {
-	bounds := img.Bounds()
-	srcWidth := bounds.Dx()
-	srcHeight := bounds.Dy()
-
-	// If both dimensions are specified, use them
+// calculateDimensions calculates target dimensions while maintaining aspect ratio
+func calculateDimensions(origWidth, origHeight, targetWidth, targetHeight int) (int, int) {
 	if targetWidth > 0 && targetHeight > 0 {
+		// Both dimensions specified, use as-is
 		return targetWidth, targetHeight
 	}
 
-	// If only width is specified, calculate height maintaining aspect ratio
-	if targetWidth > 0 && targetHeight == 0 {
-		aspectRatio := float64(srcHeight) / float64(srcWidth)
-		return targetWidth, int(float64(targetWidth) * aspectRatio)
+	aspectRatio := float64(origWidth) / float64(origHeight)
+
+	if targetWidth > 0 {
+		// Only width specified, calculate height
+		return targetWidth, int(float64(targetWidth) / aspectRatio)
 	}
 
-	// If only height is specified, calculate width maintaining aspect ratio
-	if targetWidth == 0 && targetHeight > 0 {
-		aspectRatio := float64(srcWidth) / float64(srcHeight)
-		return int(float64(targetHeight) * aspectRatio), targetHeight
-	}
-
-	// If neither is specified, return original dimensions
-	return srcWidth, srcHeight
-}
-
-// generateOutputPath generates an output filename for the resized image
-func generateOutputPath(inputPath string, width, height int) string {
-	ext := filepath.Ext(inputPath)
-	base := inputPath[:len(inputPath)-len(ext)]
-	return fmt.Sprintf("%s_resized_%dx%d%s", base, width, height, ext)
+	// Only height specified, calculate width
+	return int(float64(targetHeight) * aspectRatio), targetHeight
 }
