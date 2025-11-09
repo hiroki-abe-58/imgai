@@ -2,6 +2,7 @@ package image
 
 import (
 	"fmt"
+	"image"
 	"image/jpeg"
 	"os"
 
@@ -58,7 +59,7 @@ func ConvertImage(inputPath string, opts ConvertOptions) error {
 }
 
 // saveWithFormat saves image with specific format encoding
-func saveWithFormat(img imaging.Image, outputPath, format string, quality int) error {
+func saveWithFormat(img image.Image, outputPath, format string, quality int) error {
 	switch format {
 	case "jpg":
 		return saveAsJPEG(img, outputPath, quality)
@@ -72,7 +73,7 @@ func saveWithFormat(img imaging.Image, outputPath, format string, quality int) e
 }
 
 // saveAsJPEG saves image as JPEG with specified quality
-func saveAsJPEG(img imaging.Image, outputPath string, quality int) error {
+func saveAsJPEG(img image.Image, outputPath string, quality int) error {
 	file, err := os.Create(outputPath)
 	if err != nil {
 		return fmt.Errorf("%w: %v", ErrSaveImage, err)
