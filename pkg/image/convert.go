@@ -2,117 +2,87 @@ package image
 
 import (
 	"fmt"
-	"image"
 	"image/jpeg"
-	"image/png"
 	"os"
-	"path/filepath"
-	"strings"
 
 	"github.com/disintegration/imaging"
-	"golang.org/x/image/webp"
 )
 
-// ConvertOptions holds options for converting images
+// ConvertOptions holds options for converting an image
 type ConvertOptions struct {
 	Format  string
 	Quality int
 	Output  string
 }
 
-// SupportedFormats lists all supported image formats
-var SupportedFormats = []string{"jpg", "jpeg", "png", "webp"}
-
 // ConvertImage converts an image to a different format
 func ConvertImage(inputPath string, opts ConvertOptions) error {
-	// Validate format
-	format := strings.ToLower(opts.Format)
-	if !isFormatSupported(format) {
-		return fmt.Errorf("unsupported format: %s (supported: %v)", format, SupportedFormats)
+	// Validate input file
+	if err := ValidateInputFile(inputPath); err != nil {
+		return err
 	}
 
-	// Open and decode the image
-	src, err := openImage(inputPath)
+	// Normalize and validate format
+	opts.Format = NormalizeFormat(opts.Format)
+	if err := ValidateFormat(opts.Format); err != nil {
+		return err
+	}
+
+	// Validate quality for JPEG
+	if opts.Format == "jpg" {
+		if err := ValidateQuality(opts.Quality); err != nil {
+			return err
+		}
+	}
+
+	// Open the image
+	img, err := imaging.Open(inputPath)
 	if err != nil {
-		return fmt.Errorf("failed to open image: %w", err)
+		return fmt.Errorf("%w: %v", ErrOpenFile, err)
 	}
 
 	// Determine output path
 	outputPath := opts.Output
 	if outputPath == "" {
-		outputPath = generateConvertOutputPath(inputPath, format)
+		ext := GetFileExtension(opts.Format)
+		outputPath = GenerateOutputPath(inputPath, "_converted", ext)
 	}
 
-	// Save with the target format
-	if err := saveImage(src, outputPath, format, opts.Quality); err != nil {
-		return fmt.Errorf("failed to save image: %w", err)
+	// Save with format-specific encoding
+	if err := saveWithFormat(img, outputPath, opts.Format, opts.Quality); err != nil {
+		return err
 	}
 
-	fmt.Printf("✓ Converted: %s → %s (%s)\n", inputPath, outputPath, strings.ToUpper(format))
+	fmt.Printf("✓ Converted: %s → %s (%s)\n", inputPath, outputPath, opts.Format)
 	return nil
 }
 
-// openImage opens and decodes an image file
-func openImage(path string) (image.Image, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-
-	// Detect format and decode
-	ext := strings.ToLower(filepath.Ext(path))
-	switch ext {
-	case ".webp":
-		return webp.Decode(file)
-	default:
-		// Use imaging library's Open for other formats
-		return imaging.Open(path)
-	}
-}
-
-// saveImage saves an image in the specified format
-func saveImage(img image.Image, path, format string, quality int) error {
-	file, err := os.Create(path)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
+// saveWithFormat saves image with specific format encoding
+func saveWithFormat(img imaging.Image, outputPath, format string, quality int) error {
 	switch format {
-	case "jpg", "jpeg":
-		if quality == 0 {
-			quality = 90 // Default JPEG quality
-		}
-		return jpeg.Encode(file, img, &jpeg.Options{Quality: quality})
-	
+	case "jpg":
+		return saveAsJPEG(img, outputPath, quality)
 	case "png":
-		encoder := png.Encoder{CompressionLevel: png.DefaultCompression}
-		return encoder.Encode(file, img)
-	
+		return imaging.Save(img, outputPath)
 	case "webp":
-		// Use imaging library for WebP encoding
-		return imaging.Save(img, path)
-	
+		return imaging.Save(img, outputPath)
 	default:
-		return fmt.Errorf("unsupported format: %s", format)
+		return fmt.Errorf("%w: %s", ErrInvalidFormat, format)
 	}
 }
 
-// isFormatSupported checks if a format is supported
-func isFormatSupported(format string) bool {
-	format = strings.ToLower(format)
-	for _, f := range SupportedFormats {
-		if f == format {
-			return true
-		}
+// saveAsJPEG saves image as JPEG with specified quality
+func saveAsJPEG(img imaging.Image, outputPath string, quality int) error {
+	file, err := os.Create(outputPath)
+	if err != nil {
+		return fmt.Errorf("%w: %v", ErrSaveImage, err)
 	}
-	return false
-}
+	defer file.Close()
 
-// generateConvertOutputPath generates an output filename for the converted image
-func generateConvertOutputPath(inputPath, targetFormat string) string {
-	ext := filepath.Ext(inputPath)
-	base := inputPath[:len(inputPath)-len(ext)]
-	return fmt.Sprintf("%s.%s", base, targetFormat)
+	opts := &jpeg.Options{Quality: quality}
+	if err := jpeg.Encode(file, img, opts); err != nil {
+		return fmt.Errorf("%w: %v", ErrEncodeImage, err)
+	}
+
+	return nil
 }
