@@ -20,24 +20,29 @@ type Result struct {
 
 // Processor handles batch processing of files
 type Processor struct {
-	workers     int
-	showProgress bool
+	config *Config
 }
 
-// NewProcessor creates a new batch processor
+// NewProcessor creates a new batch processor with default config
 func NewProcessor(workers int) *Processor {
-	if workers <= 0 {
-		workers = 4 // Default to 4 workers
+	return &Processor{
+		config: NewConfig(workers),
+	}
+}
+
+// NewProcessorWithConfig creates a new batch processor with custom config
+func NewProcessorWithConfig(config *Config) *Processor {
+	if config == nil {
+		config = DefaultConfig()
 	}
 	return &Processor{
-		workers:     workers,
-		showProgress: true,
+		config: config,
 	}
 }
 
 // SetProgressBar enables or disables the progress bar
 func (p *Processor) SetProgressBar(show bool) {
-	p.showProgress = show
+	p.config.ShowProgress = show
 }
 
 // Process processes multiple files concurrently
@@ -62,44 +67,30 @@ func (p *Processor) Process(patterns []string, processFunc ProcessFunc) []Result
 
 	// Create progress bar if enabled
 	var bar *progressbar.ProgressBar
-	if p.showProgress && len(files) > 1 {
-		bar = progressbar.NewOptions(len(files),
-			progressbar.OptionEnableColorCodes(true),
-			progressbar.OptionShowCount(),
-			progressbar.OptionSetWidth(40),
-			progressbar.OptionSetDescription("[cyan]Processing images...[reset]"),
-			progressbar.OptionSetTheme(progressbar.Theme{
-				Saucer:        "[green]=[reset]",
-				SaucerHead:    "[green]>[reset]",
-				SaucerPadding: " ",
-				BarStart:      "[",
-				BarEnd:        "]",
-			}),
-		)
+	if p.config.ShowProgress && len(files) > 1 {
+		bar = createProgressBar(len(files))
 	}
 
-	// Create channels for work distribution
+	// Process files concurrently
+	results := p.processFiles(files, processFunc, bar)
+
+	if bar != nil {
+		fmt.Println() // New line after progress bar
+	}
+
+	return results
+}
+
+// processFiles processes files using worker pool pattern
+func (p *Processor) processFiles(files []string, processFunc ProcessFunc, bar *progressbar.ProgressBar) []Result {
 	jobs := make(chan string, len(files))
 	results := make(chan Result, len(files))
 
 	// Start worker goroutines
 	var wg sync.WaitGroup
-	for i := 0; i < p.workers; i++ {
+	for i := 0; i < p.config.Workers; i++ {
 		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for path := range jobs {
-				err := processFunc(path)
-				results <- Result{
-					Path:    path,
-					Success: err == nil,
-					Error:   err,
-				}
-				if bar != nil {
-					bar.Add(1)
-				}
-			}
-		}()
+		go p.worker(&wg, jobs, results, processFunc, bar)
 	}
 
 	// Send jobs to workers
@@ -120,11 +111,40 @@ func (p *Processor) Process(patterns []string, processFunc ProcessFunc) []Result
 		allResults = append(allResults, result)
 	}
 
-	if bar != nil {
-		fmt.Println() // New line after progress bar
-	}
-
 	return allResults
+}
+
+// worker processes jobs from the jobs channel
+func (p *Processor) worker(wg *sync.WaitGroup, jobs <-chan string, results chan<- Result, processFunc ProcessFunc, bar *progressbar.ProgressBar) {
+	defer wg.Done()
+	for path := range jobs {
+		err := processFunc(path)
+		results <- Result{
+			Path:    path,
+			Success: err == nil,
+			Error:   err,
+		}
+		if bar != nil {
+			bar.Add(1)
+		}
+	}
+}
+
+// createProgressBar creates a configured progress bar
+func createProgressBar(total int) *progressbar.ProgressBar {
+	return progressbar.NewOptions(total,
+		progressbar.OptionEnableColorCodes(true),
+		progressbar.OptionShowCount(),
+		progressbar.OptionSetWidth(40),
+		progressbar.OptionSetDescription("[cyan]Processing images...[reset]"),
+		progressbar.OptionSetTheme(progressbar.Theme{
+			Saucer:        "[green]=[reset]",
+			SaucerHead:    "[green]>[reset]",
+			SaucerPadding: " ",
+			BarStart:      "[",
+			BarEnd:        "]",
+		}),
+	)
 }
 
 // expandPatterns expands glob patterns to actual file paths
@@ -139,7 +159,6 @@ func expandPatterns(patterns []string) ([]string, error) {
 		}
 
 		for _, match := range matches {
-			// Check if it's a file and hasn't been added yet
 			if !seen[match] {
 				files = append(files, match)
 				seen[match] = true
