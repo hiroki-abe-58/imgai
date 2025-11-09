@@ -14,6 +14,7 @@ var (
 	convertQuality int
 	convertOutput  string
 	convertWorkers int
+	convertDryRun  bool
 )
 
 var convertCmd = &cobra.Command{
@@ -36,8 +37,8 @@ Examples:
   # Convert multiple images to JPEG
   imgai convert img1.png img2.png --format jpg --quality 85
 
-  # Convert all PNGs to WebP
-  imgai convert *.png --format webp
+  # Preview without actually converting (dry-run)
+  imgai convert *.jpg --format png --dry-run
 
   # Convert with 8 parallel workers
   imgai convert *.jpg --format png --workers 8`,
@@ -52,6 +53,7 @@ func init() {
 	convertCmd.Flags().IntVarP(&convertQuality, "quality", "q", 90, "JPEG quality (1-100, default: 90)")
 	convertCmd.Flags().StringVarP(&convertOutput, "output", "o", "", "Output file path (single file only)")
 	convertCmd.Flags().IntVar(&convertWorkers, "workers", 4, "Number of parallel workers for batch processing")
+	convertCmd.Flags().BoolVar(&convertDryRun, "dry-run", false, "Preview operations without executing them")
 	
 	convertCmd.MarkFlagRequired("format")
 }
@@ -60,6 +62,39 @@ func runConvert(cmd *cobra.Command, args []string) error {
 	// Validate quality range
 	if convertQuality < 1 || convertQuality > 100 {
 		return fmt.Errorf("quality must be between 1 and 100")
+	}
+
+	// Dry-run mode
+	if convertDryRun {
+		fmt.Println("🔍 DRY RUN MODE - No files will be modified")
+		fmt.Println()
+		
+		processor := batch.NewProcessor(convertWorkers)
+		processor.SetProgressBar(false) // Disable progress bar in dry-run
+		
+		previewFunc := func(path string) error {
+			opts := image.ConvertOptions{
+				Format:  convertFormat,
+				Quality: convertQuality,
+				Output:  convertOutput,
+			}
+			outputPath := opts.Output
+			if outputPath == "" {
+				// Generate preview of output filename
+				outputPath = fmt.Sprintf("%s (auto-generated .%s)", path, convertFormat)
+			}
+			qualityInfo := ""
+			if convertFormat == "jpg" || convertFormat == "jpeg" {
+				qualityInfo = fmt.Sprintf(", quality=%d", convertQuality)
+			}
+			fmt.Printf("  Would convert: %s → %s (%s%s)\n", path, outputPath, convertFormat, qualityInfo)
+			return nil
+		}
+		
+		results := processor.Process(args, previewFunc)
+		fmt.Printf("\n✓ Would process %d images\n", len(results))
+		fmt.Println("💡 Run without --dry-run to execute")
+		return nil
 	}
 
 	// Single file mode with output path

@@ -14,6 +14,7 @@ var (
 	resizeHeight  int
 	resizeOutput  string
 	resizeWorkers int
+	resizeDryRun  bool
 )
 
 var resizeCmd = &cobra.Command{
@@ -34,8 +35,8 @@ Examples:
   # Resize multiple images
   imgai resize img1.jpg img2.jpg img3.jpg --width 800
 
-  # Resize all JPEGs in directory
-  imgai resize *.jpg --width 800
+  # Preview without actually resizing (dry-run)
+  imgai resize *.jpg --width 800 --dry-run
 
   # Resize with 8 parallel workers
   imgai resize *.jpg --width 800 --workers 8`,
@@ -50,12 +51,42 @@ func init() {
 	resizeCmd.Flags().IntVar(&resizeHeight, "height", 0, "Target height in pixels")
 	resizeCmd.Flags().StringVarP(&resizeOutput, "output", "o", "", "Output file path (single file only)")
 	resizeCmd.Flags().IntVar(&resizeWorkers, "workers", 4, "Number of parallel workers for batch processing")
+	resizeCmd.Flags().BoolVar(&resizeDryRun, "dry-run", false, "Preview operations without executing them")
 }
 
 func runResize(cmd *cobra.Command, args []string) error {
 	// Validate at least one dimension is specified
 	if resizeWidth == 0 && resizeHeight == 0 {
 		return fmt.Errorf("at least one dimension (width or height) must be specified")
+	}
+
+	// Dry-run mode
+	if resizeDryRun {
+		fmt.Println("🔍 DRY RUN MODE - No files will be modified")
+		fmt.Println()
+		
+		processor := batch.NewProcessor(resizeWorkers)
+		processor.SetProgressBar(false) // Disable progress bar in dry-run
+		
+		previewFunc := func(path string) error {
+			opts := image.ResizeOptions{
+				Width:  resizeWidth,
+				Height: resizeHeight,
+				Output: resizeOutput,
+			}
+			outputPath := opts.Output
+			if outputPath == "" {
+				// Generate preview of output filename
+				outputPath = fmt.Sprintf("%s (auto-generated)", path)
+			}
+			fmt.Printf("  Would resize: %s → %s (%dx%d)\n", path, outputPath, resizeWidth, resizeHeight)
+			return nil
+		}
+		
+		results := processor.Process(args, previewFunc)
+		fmt.Printf("\n✓ Would process %d images\n", len(results))
+		fmt.Println("💡 Run without --dry-run to execute")
+		return nil
 	}
 
 	// Single file mode with output path
