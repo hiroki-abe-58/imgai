@@ -5,6 +5,8 @@ AI-powered image processing CLI tool for modern workflows.
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Go Version](https://img.shields.io/badge/Go-1.21+-00ADD8?logo=go)](https://go.dev/)
 
+English | [日本語](README_ja.md)
+
 A fast, efficient, and user-friendly command-line tool for image processing, built with Go and optimized for Apple Silicon.
 
 ## ✨ Features
@@ -49,6 +51,17 @@ sudo mv imgai /usr/local/bin/
 
 # Verify installation
 imgai --version
+```
+
+## 🌐 Language Settings
+```bash
+# Use in Japanese
+export IMGAI_LANG=ja
+imgai resize photo.jpg --width 800
+
+# Use in English (default)
+export IMGAI_LANG=en
+imgai resize photo.jpg --width 800
 ```
 
 ## 📖 Usage
@@ -121,13 +134,9 @@ imgai/
 │   └── strip.go      # EXIF removal
 ├── pkg/              # Core packages
 │   ├── image/        # Image processing logic
-│   │   ├── resize.go
-│   │   └── convert.go
 │   ├── batch/        # Batch processing with goroutines
-│   │   └── processor.go
-│   └── metadata/     # EXIF handling
-│       ├── exif.go
-│       └── remove.go
+│   ├── metadata/     # EXIF handling
+│   └── i18n/         # Internationalization
 └── main.go           # Entry point
 ```
 
@@ -182,6 +191,7 @@ git push origin feature/new-feature
 - [x] Progress bar for batch operations
 - [x] Dry-run mode
 - [x] EXIF metadata removal
+- [x] Japanese language support (i18n)
 - [ ] AI-powered features (future)
 - [ ] Cross-platform binaries (releases)
 
