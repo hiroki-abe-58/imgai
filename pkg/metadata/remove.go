@@ -6,11 +6,6 @@ import (
 	"github.com/disintegration/imaging"
 )
 
-// StripOptions holds options for stripping metadata
-type StripOptions struct {
-	Output string
-}
-
 // StripExif removes all EXIF metadata from an image
 func StripExif(inputPath string, opts StripOptions) error {
 	// Open the image
@@ -20,17 +15,21 @@ func StripExif(inputPath string, opts StripOptions) error {
 	}
 
 	// Determine output path
-	outputPath := opts.Output
-	if outputPath == "" {
-		outputPath = inputPath // Overwrite original
-	}
+	outputPath := getOutputPath(inputPath, opts.Output)
 
 	// Save the image without metadata
-	// imaging.Save automatically strips EXIF data
 	if err := imaging.Save(img, outputPath); err != nil {
 		return fmt.Errorf("failed to save image: %w", err)
 	}
 
 	fmt.Printf("✓ Stripped metadata: %s\n", outputPath)
 	return nil
+}
+
+// getOutputPath returns the appropriate output path
+func getOutputPath(inputPath, customOutput string) string {
+	if customOutput != "" {
+		return customOutput
+	}
+	return inputPath // Overwrite original
 }
