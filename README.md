@@ -4,18 +4,25 @@ AI-powered image processing CLI tool for modern workflows.
 
 ## Features
 
-### Phase 1: Core Image Processing (Coming Soon)
-- 🖼️ Image resizing and optimization
-- 🔄 Format conversion (PNG/JPEG/WebP)
-- 📊 Batch processing with parallel execution
-- 🎯 Quality optimization for web and mobile
+### ✅ Implemented
 
-### Phase 2: Metadata Management (Planned)
-- 📝 EXIF data reading and editing
+#### Core Image Processing
+- 🖼️ **Image resizing** - Maintain aspect ratio or exact dimensions
+- 🔄 **Format conversion** - Convert between JPEG, PNG, and WebP
+- 📊 **Batch processing** - Process multiple images in parallel with goroutines
+- 🎯 **Quality optimization** - Adjust JPEG quality for optimal file size
+- 📈 **Progress bar** - Visual feedback for batch operations
+
+#### Metadata Management
+- 📝 **EXIF reading** - View camera settings, GPS, and image metadata
+
+### 🔜 Planned
+
+#### Metadata Management (Phase 2)
 - 🔒 Privacy-focused metadata removal
 - 📋 Bulk metadata operations
 
-### Phase 3: AI-Powered Features (Planned)
+#### AI-Powered Features (Phase 3)
 - 🤖 Image description generation
 - 📖 OCR (Optical Character Recognition)
 - 🎯 Object detection
@@ -35,9 +42,47 @@ go build -o imgai
 ```
 
 ## Usage
+
+### Resize Images
 ```bash
-# Coming soon!
-imgai --help
+# Resize single image to 800px width (maintain aspect ratio)
+imgai resize input.jpg --width 800
+
+# Resize to 600px height
+imgai resize input.jpg --height 600
+
+# Resize to exact dimensions
+imgai resize input.jpg --width 800 --height 600
+
+# Batch resize with progress bar
+imgai resize *.jpg --width 800
+```
+
+### Convert Formats
+```bash
+# Convert to PNG
+imgai convert input.jpg --format png
+
+# Convert to JPEG with custom quality
+imgai convert input.png --format jpg --quality 85
+
+# Batch convert all PNGs to WebP
+imgai convert *.png --format webp
+```
+
+### View EXIF Data
+```bash
+# Display EXIF metadata
+imgai exif photo.jpg
+```
+
+### Advanced Options
+```bash
+# Use 8 parallel workers for faster batch processing
+imgai resize *.jpg --width 800 --workers 8
+
+# Specify output file (single file only)
+imgai resize input.jpg --width 800 --output result.jpg
 ```
 
 ## Development
@@ -55,11 +100,30 @@ go test ./...
 ## Roadmap
 
 - [x] Project initialization
-- [ ] CLI framework setup (cobra)
-- [ ] Basic image operations
-- [ ] Batch processing
+- [x] CLI framework setup (cobra)
+- [x] Basic image operations (resize, convert)
+- [x] Batch processing with goroutines
+- [x] EXIF metadata reading
+- [x] Progress bar for batch operations
+- [ ] EXIF metadata removal
+- [ ] Dry-run mode
 - [ ] AI integration
 - [ ] Cross-platform packaging
+
+## Architecture
+```
+imgai/
+├── cmd/           # CLI commands
+│   ├── root.go    # Root command
+│   ├── resize.go  # Resize command
+│   ├── convert.go # Convert command
+│   └── exif.go    # EXIF command
+├── pkg/           # Core packages
+│   ├── image/     # Image processing logic
+│   ├── batch/     # Batch processing with progress
+│   └── metadata/  # EXIF metadata handling
+└── main.go        # Entry point
+```
 
 ## License
 
