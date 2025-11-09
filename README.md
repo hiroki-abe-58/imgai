@@ -2,33 +2,33 @@
 
 AI-powered image processing CLI tool for modern workflows.
 
-## Features
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Go Version](https://img.shields.io/badge/Go-1.21+-00ADD8?logo=go)](https://go.dev/)
 
-### ✅ Implemented
+A fast, efficient, and user-friendly command-line tool for image processing, built with Go and optimized for Apple Silicon.
 
-#### Core Image Processing
-- 🖼️ **Image resizing** - Maintain aspect ratio or exact dimensions
-- 🔄 **Format conversion** - Convert between JPEG, PNG, and WebP
-- 📊 **Batch processing** - Process multiple images in parallel with goroutines
-- 🎯 **Quality optimization** - Adjust JPEG quality for optimal file size
-- 📈 **Progress bar** - Visual feedback for batch operations
+## ✨ Features
 
-#### Metadata Management
-- 📝 **EXIF reading** - View camera settings, GPS, and image metadata
+### 🖼️ Image Processing
+- **Resize** - Maintain aspect ratio or specify exact dimensions
+- **Convert** - Transform between JPEG, PNG, and WebP formats
+- **Quality Control** - Adjust compression for optimal file size
 
-### 🔜 Planned
+### 📊 Batch Operations
+- **Parallel Processing** - Leverage goroutines for maximum performance
+- **Progress Bar** - Visual feedback for batch operations
+- **Glob Patterns** - Process multiple files with `*.jpg` patterns
 
-#### Metadata Management (Phase 2)
-- 🔒 Privacy-focused metadata removal
-- 📋 Bulk metadata operations
+### 🔒 Privacy & Metadata
+- **EXIF Reading** - View camera settings, GPS, and metadata
+- **EXIF Removal** - Strip all metadata for privacy protection
 
-#### AI-Powered Features (Phase 3)
-- 🤖 Image description generation
-- 📖 OCR (Optical Character Recognition)
-- 🎯 Object detection
-- 🔍 Smart image analysis
+### 🛡️ Safety Features
+- **Dry-Run Mode** - Preview operations before execution
+- **Error Handling** - Detailed error messages and recovery
+- **Automatic Naming** - Smart output filename generation
 
-## Installation
+## 🚀 Installation
 
 ### Prerequisites
 - Go 1.21 or higher
@@ -41,51 +41,105 @@ cd imgai
 go build -o imgai
 ```
 
-## Usage
+### Quick Start
+```bash
+# Make it executable and move to PATH
+chmod +x imgai
+sudo mv imgai /usr/local/bin/
+
+# Verify installation
+imgai --version
+```
+
+## 📖 Usage
 
 ### Resize Images
 ```bash
-# Resize single image to 800px width (maintain aspect ratio)
-imgai resize input.jpg --width 800
+# Resize to 800px width (maintain aspect ratio)
+imgai resize photo.jpg --width 800
 
 # Resize to 600px height
-imgai resize input.jpg --height 600
+imgai resize photo.jpg --height 600
 
 # Resize to exact dimensions
-imgai resize input.jpg --width 800 --height 600
+imgai resize photo.jpg --width 1920 --height 1080
 
 # Batch resize with progress bar
 imgai resize *.jpg --width 800
+
+# Preview before resizing
+imgai resize *.jpg --width 800 --dry-run
+
+# Use 8 parallel workers for faster processing
+imgai resize *.jpg --width 800 --workers 8
 ```
 
 ### Convert Formats
 ```bash
 # Convert to PNG
-imgai convert input.jpg --format png
+imgai convert photo.jpg --format png
 
 # Convert to JPEG with custom quality
-imgai convert input.png --format jpg --quality 85
+imgai convert image.png --format jpg --quality 85
 
-# Batch convert all PNGs to WebP
-imgai convert *.png --format webp
+# Convert to WebP (modern format)
+imgai convert photo.jpg --format webp
+
+# Batch convert all PNGs to JPEGs
+imgai convert *.png --format jpg --quality 90
+
+# Preview before converting
+imgai convert *.png --format jpg --dry-run
 ```
 
-### View EXIF Data
+### Manage Metadata
 ```bash
-# Display EXIF metadata
+# View EXIF data
 imgai exif photo.jpg
+
+# Remove all metadata (privacy mode)
+imgai strip photo.jpg
+
+# Strip metadata and save to new file
+imgai strip photo.jpg --output clean.jpg
+
+# Batch strip metadata
+imgai strip *.jpg --workers 8
+
+# Preview metadata removal
+imgai strip *.jpg --dry-run
 ```
 
-### Advanced Options
-```bash
-# Use 8 parallel workers for faster batch processing
-imgai resize *.jpg --width 800 --workers 8
-
-# Specify output file (single file only)
-imgai resize input.jpg --width 800 --output result.jpg
+## 🏗️ Architecture
+```
+imgai/
+├── cmd/              # CLI commands
+│   ├── root.go       # Root command with Cobra
+│   ├── resize.go     # Resize command
+│   ├── convert.go    # Format conversion
+│   ├── exif.go       # EXIF reading
+│   └── strip.go      # EXIF removal
+├── pkg/              # Core packages
+│   ├── image/        # Image processing logic
+│   │   ├── resize.go
+│   │   └── convert.go
+│   ├── batch/        # Batch processing with goroutines
+│   │   └── processor.go
+│   └── metadata/     # EXIF handling
+│       ├── exif.go
+│       └── remove.go
+└── main.go           # Entry point
 ```
 
-## Development
+## 🎯 Key Design Principles
+
+- **DRY** - Don't Repeat Yourself
+- **SOLID** - Object-oriented design principles
+- **Separation of Concerns** - Clear module boundaries
+- **Error Handling** - Comprehensive error messages
+- **Cross-Platform** - Works on macOS, Linux, and Windows
+
+## 🔧 Development
 
 ### Building
 ```bash
@@ -97,42 +151,68 @@ go build -o imgai
 go test ./...
 ```
 
-## Roadmap
+### Adding New Features
+```bash
+# Create feature branch
+git checkout -b feature/new-feature
+
+# Make changes and commit
+git add .
+git commit -m "feat: add new feature"
+
+# Push and create PR
+git push origin feature/new-feature
+```
+
+## 📊 Performance
+
+- **Parallel Processing** - Up to 8x faster with multiple workers
+- **Memory Efficient** - Streaming image processing
+- **Apple Silicon Optimized** - Native ARM64 support
+- **Goroutines** - Concurrent processing for batch operations
+
+## 🗺️ Roadmap
 
 - [x] Project initialization
-- [x] CLI framework setup (cobra)
-- [x] Basic image operations (resize, convert)
+- [x] CLI framework (Cobra)
+- [x] Image resize functionality
+- [x] Format conversion (JPEG/PNG/WebP)
 - [x] Batch processing with goroutines
 - [x] EXIF metadata reading
 - [x] Progress bar for batch operations
-- [ ] EXIF metadata removal
-- [ ] Dry-run mode
-- [ ] AI integration
-- [ ] Cross-platform packaging
+- [x] Dry-run mode
+- [x] EXIF metadata removal
+- [ ] AI-powered features (future)
+- [ ] Cross-platform binaries (releases)
 
-## Architecture
-```
-imgai/
-├── cmd/           # CLI commands
-│   ├── root.go    # Root command
-│   ├── resize.go  # Resize command
-│   ├── convert.go # Convert command
-│   └── exif.go    # EXIF command
-├── pkg/           # Core packages
-│   ├── image/     # Image processing logic
-│   ├── batch/     # Batch processing with progress
-│   └── metadata/  # EXIF metadata handling
-└── main.go        # Entry point
-```
-
-## License
+## 📝 License
 
 MIT License - see [LICENSE](LICENSE) for details
 
-## Contributing
+## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
-## Author
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'feat: add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-Developed by [hiroki-abe-58](https://github.com/hiroki-abe-58)
+## 👤 Author
+
+**Hiroki Abe**
+- GitHub: [@hiroki-abe-58](https://github.com/hiroki-abe-58)
+- Repository: [imgai](https://github.com/hiroki-abe-58/imgai)
+
+## 🙏 Acknowledgments
+
+Built with:
+- [Cobra](https://github.com/spf13/cobra) - CLI framework
+- [imaging](https://github.com/disintegration/imaging) - Image processing
+- [goexif](https://github.com/rwcarlsen/goexif) - EXIF handling
+- [progressbar](https://github.com/schollz/progressbar) - Progress visualization
+
+---
+
+⭐ If you find this project useful, please consider giving it a star!

@@ -19,10 +19,17 @@ var rootCmd = &cobra.Command{
 imgai provides modern image processing capabilities including:
   • Image resizing and optimization
   • Format conversion (PNG/JPEG/WebP)
-  • Metadata management
-  • AI-powered image analysis
+  • Batch processing with parallel execution
+  • EXIF metadata reading and removal
+  • Progress bar and dry-run mode
 
-More features coming soon!`,
+Built with Go and optimized for Apple Silicon.
+
+Examples:
+  imgai resize photo.jpg --width 800
+  imgai convert image.png --format jpg
+  imgai exif photo.jpg
+  imgai strip photo.jpg`,
 	Version: version,
 }
 
@@ -35,5 +42,4 @@ func Execute() {
 
 func init() {
 	// Global flags can be added here
-	// rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.imgai.yaml)")
 }
